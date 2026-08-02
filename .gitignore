@@ -1,0 +1,29 @@
+# Environment variables (গোপন পাসওয়ার্ড ও ডিক্লেয়ারেশন)
+.env
+.env.local
+.env.production
+
+# Dependencies (বিশাল আকারের নোড প্যাকেজ)
+node_modules/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# System Files
+.DS_Store
+Thumbs.db
+
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+node_modules/
+.next/
+out/
+build/
+.env
+.env.local

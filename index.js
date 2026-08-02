@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config();
+const tutorsData = require('./tutors.json');
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -30,6 +31,15 @@ async function run() {
     tutorsCollection = db.collection('tutors');
 
     console.log(">>> Connected to MongoDB Database Successfully! <<<");
+
+    // =========================================================
+    // 🚀 ২৫টি ডাটা একবারে ইনসার্ট করার কোড
+    // (ডাটা ইনসার্ট হওয়ার পর নিচের ৩টি লাইন কমেন্ট // করে দেবেন)
+    // =========================================================
+    // const result = await tutorsCollection.insertMany(tutorsData);
+    // console.log(`🎉 সফলভাবে ${result.insertedCount} টি টিউটর ডাটাবেজে যুক্ত হয়েছে!`);
+    // // =========================================================
+
   } catch (error) {
     console.error("Database connection error:", error);
   }
