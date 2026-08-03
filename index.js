@@ -6,8 +6,12 @@ require('dotenv').config();
 const app = express();
 const port = process.env.PORT || 5000;
 
-// Middleware
-app.use(cors());
+// Middleware (CORS Configuration for Vercel Deployment)
+app.use(cors({
+  origin: '*', 
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+  credentials: true
+}));
 app.use(express.json());
 
 // MongoDB Setup
@@ -41,6 +45,8 @@ async function connectDB() {
 app.get('/', (req, res) => {
   res.send('Tutor Finder Server Running Cleanly!');
 });
+
+// ---------------- TUTORS API ----------------
 
 // 1. Get All Tutors
 app.get('/tutors', async (req, res) => {
@@ -80,6 +86,72 @@ app.post('/tutors', async (req, res) => {
     res.status(500).send({ message: "Error adding tutor", error: error.message });
   }
 });
+
+
+// ---------------- BOOKINGS API ----------------
+
+// 4. Add Booking (Modal submit করলে ডাটা এখানে আসবে)
+app.post('/bookings', async (req, res) => {
+  try {
+    const bookingData = req.body;
+    const db = await connectDB();
+    const bookingsCollection = db.collection('bookings');
+    const result = await bookingsCollection.insertOne(bookingData);
+    res.send(result);
+  } catch (error) {
+    res.status(500).send({ message: "Booking failed", error: error.message });
+  }
+});
+
+// 5. Get Bookings by User Email (My Bookings পেজের জন্য)
+app.get('/bookings', async (req, res) => {
+  try {
+    const email = req.query.email;
+    let query = {};
+    if (email) {
+      query = { userEmail: email }; // ফ্রন্টএন্ড থেকে ?email=user@gmail.com পাঠাতে হবে
+    }
+    const db = await connectDB();
+    const bookingsCollection = db.collection('bookings');
+    const result = await bookingsCollection.find(query).toArray();
+    res.send(result);
+  } catch (error) {
+    res.status(500).send({ message: "Error fetching bookings", error: error.message });
+  }
+});
+
+// 6. Update Booking Status (Cancel করার জন্য)
+app.patch('/bookings/:id', async (req, res) => {
+  try {
+    const id = req.params.id;
+    const { status } = req.body;
+    const db = await connectDB();
+    const bookingsCollection = db.collection('bookings');
+    const filter = { _id: new ObjectId(id) };
+    const updatedDoc = {
+      $set: { status: status || 'cancelled' }
+    };
+    const result = await bookingsCollection.updateOne(filter, updatedDoc);
+    res.send(result);
+  } catch (error) {
+    res.status(500).send({ message: "Error updating booking status", error: error.message });
+  }
+});
+
+// 7. Delete Booking (মুছে ফেলার জন্য)
+app.delete('/bookings/:id', async (req, res) => {
+  try {
+    const id = req.params.id;
+    const db = await connectDB();
+    const bookingsCollection = db.collection('bookings');
+    const query = { _id: new ObjectId(id) };
+    const result = await bookingsCollection.deleteOne(query);
+    res.send(result);
+  } catch (error) {
+    res.status(500).send({ message: "Error deleting booking", error: error.message });
+  }
+});
+
 
 // Vercel / Local Server Export
 if (process.env.NODE_ENV !== 'production') {
