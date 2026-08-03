@@ -2,7 +2,6 @@ const express = require('express');
 const cors = require('cors');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config();
-const tutorsData = require('./tutors.json');
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -22,29 +21,19 @@ const client = new MongoClient(uri, {
   }
 });
 
-let tutorsCollection;
+// Database & Collection Helper (Cached for Vercel Serverless)
+let cachedDb = null;
 
-async function run() {
-  try {
-    // Database and Collection setup
-    const db = client.db('tutorFinderDB');
-    tutorsCollection = db.collection('tutors');
-
-    console.log(">>> Connected to MongoDB Database Successfully! <<<");
-
-    // =========================================================
-    // 🚀 ২৫টি ডাটা একবারে ইনসার্ট করার কোড
-    // (ডাটা ইনসার্ট হওয়ার পর নিচের ৩টি লাইন কমেন্ট // করে দেবেন)
-    // =========================================================
-    // const result = await tutorsCollection.insertMany(tutorsData);
-    // console.log(`🎉 সফলভাবে ${result.insertedCount} টি টিউটর ডাটাবেজে যুক্ত হয়েছে!`);
-    // // =========================================================
-
-  } catch (error) {
-    console.error("Database connection error:", error);
+async function connectDB() {
+  if (cachedDb) {
+    return cachedDb;
   }
+  await client.connect();
+  const db = client.db('tutorFinderDB');
+  cachedDb = db;
+  console.log(">>> Connected to MongoDB Database Successfully! <<<");
+  return db;
 }
-run().catch(console.dir);
 
 // ==================== ROUTES ====================
 
@@ -56,14 +45,12 @@ app.get('/', (req, res) => {
 // 1. Get All Tutors
 app.get('/tutors', async (req, res) => {
   try {
-    if (!tutorsCollection) {
-      return res.status(500).send({ message: "Database not connected yet" });
-    }
-    const cursor = tutorsCollection.find();
-    const result = await cursor.toArray();
+    const db = await connectDB();
+    const tutorsCollection = db.collection('tutors');
+    const result = await tutorsCollection.find().toArray();
     res.send(result);
   } catch (error) {
-    res.status(500).send({ message: "Error fetching tutors", error });
+    res.status(500).send({ message: "Error fetching tutors", error: error.message });
   }
 });
 
@@ -71,11 +58,13 @@ app.get('/tutors', async (req, res) => {
 app.get('/tutors/:id', async (req, res) => {
   try {
     const id = req.params.id;
+    const db = await connectDB();
+    const tutorsCollection = db.collection('tutors');
     const query = { _id: new ObjectId(id) };
     const result = await tutorsCollection.findOne(query);
     res.send(result);
   } catch (error) {
-    res.status(500).send({ message: "Error fetching tutor", error });
+    res.status(500).send({ message: "Error fetching tutor", error: error.message });
   }
 });
 
@@ -83,13 +72,20 @@ app.get('/tutors/:id', async (req, res) => {
 app.post('/tutors', async (req, res) => {
   try {
     const newTutor = req.body;
+    const db = await connectDB();
+    const tutorsCollection = db.collection('tutors');
     const result = await tutorsCollection.insertOne(newTutor);
     res.send(result);
   } catch (error) {
-    res.status(500).send({ message: "Error adding tutor", error });
+    res.status(500).send({ message: "Error adding tutor", error: error.message });
   }
 });
 
-app.listen(port, () => {
-  console.log(`Server is running on port: ${port}`);
-});
+// Vercel / Local Server Export
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(port, () => {
+    console.log(`Server is running on port: ${port}`);
+  });
+}
+
+module.exports = app;
