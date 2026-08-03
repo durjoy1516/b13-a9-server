@@ -7,7 +7,7 @@ require('dotenv').config();
 const app = express();
 const port = process.env.PORT || 5000;
 
-// Middleware (CORS Configuration for Vercel Deployment)
+// Middleware Configuration
 app.use(cors({
   origin: '*', 
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
@@ -31,7 +31,7 @@ const verifyJWT = (req, res, next) => {
   });
 };
 
-// MongoDB Setup
+// MongoDB Setup & URI
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.cu9mlf8.mongodb.net/?retryWrites=true&w=majority`;
 
 const client = new MongoClient(uri, {
@@ -42,18 +42,15 @@ const client = new MongoClient(uri, {
   }
 });
 
-// Database & Collection Helper (Cached for Vercel Serverless)
-let cachedDb = null;
+// Safe MongoDB Client Promise Caching for Vercel Serverless
+let clientPromise;
 
 async function connectDB() {
-  if (cachedDb) {
-    return cachedDb;
+  if (!clientPromise) {
+    clientPromise = client.connect();
   }
-  await client.connect();
-  const db = client.db('tutorFinderDB');
-  cachedDb = db;
-  console.log(">>> Connected to MongoDB Database Successfully! <<<");
-  return db;
+  const connectedClient = await clientPromise;
+  return connectedClient.db('tutorFinderDB');
 }
 
 // ==================== ROUTES ====================
@@ -104,7 +101,7 @@ app.get('/tutors', async (req, res) => {
   }
 });
 
-// Get My Added Tutors (MY TUTORS PAGE FIX)
+// Get My Added Tutors
 app.get('/my-tutors', async (req, res) => {
   try {
     const email = req.query.email;
@@ -112,7 +109,6 @@ app.get('/my-tutors', async (req, res) => {
       return res.status(400).send({ message: "Email parameter is required" });
     }
 
-    // email অথবা userEmail যেকোনো ফিল্ডের সাথে মিললেই টিউটর দেখাবে
     const query = { $or: [{ email: email }, { userEmail: email }] };
     const db = await connectDB();
     const tutorsCollection = db.collection('tutors');
@@ -185,7 +181,6 @@ app.put('/tutors/:id', async (req, res) => {
   }
 });
 
-
 // Delete Tutor
 app.delete('/tutors/:id', async (req, res) => {
   try {
@@ -208,7 +203,6 @@ app.post('/bookings', async (req, res) => {
     const bookingData = req.body;
     const db = await connectDB();
     
-    // Check Tutor's total slots
     const tutor = await db.collection('tutors').findOne({ _id: new ObjectId(bookingData.tutorId) });
     
     if (!tutor) {
@@ -219,11 +213,9 @@ app.post('/bookings', async (req, res) => {
       return res.status(400).send({ message: "This session is fully booked. You can't join at the moment." });
     }
 
-    // Insert Booking Record
     const bookingsCollection = db.collection('bookings');
     const result = await bookingsCollection.insertOne(bookingData);
 
-    // Auto Decrease Tutor totalSlot by 1
     await db.collection('tutors').updateOne(
       { _id: new ObjectId(bookingData.tutorId) },
       { $inc: { totalSlot: -1 } }
@@ -235,7 +227,7 @@ app.post('/bookings', async (req, res) => {
   }
 });
 
-// Get Bookings by User Email (MY BOOKINGS PAGE FIX)
+// Get Bookings by User Email
 app.get('/bookings', async (req, res) => {
   try {
     const email = req.query.email;
@@ -258,7 +250,7 @@ app.get('/bookings', async (req, res) => {
   }
 });
 
-// Update Booking Status (Cancel করার জন্য)
+// Update Booking Status
 app.patch('/bookings/:id', async (req, res) => {
   try {
     const id = req.params.id;
@@ -290,11 +282,5 @@ app.delete('/bookings/:id', async (req, res) => {
   }
 });
 
-// Vercel / Local Server Export
-if (process.env.NODE_ENV !== 'production') {
-  app.listen(port, () => {
-    console.log(`Server is running on port: ${port}`);
-  });
-}
-
+// Export App
 module.exports = app;
