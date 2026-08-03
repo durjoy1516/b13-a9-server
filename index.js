@@ -7,7 +7,7 @@ require('dotenv').config();
 const app = express();
 const port = process.env.PORT || 5000;
 
-// Middleware Configuration
+// Middleware
 app.use(cors({
   origin: '*', 
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
@@ -31,7 +31,7 @@ const verifyJWT = (req, res, next) => {
   });
 };
 
-// MongoDB Setup & URI
+// MongoDB Setup
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.cu9mlf8.mongodb.net/?retryWrites=true&w=majority`;
 
 const client = new MongoClient(uri, {
@@ -42,7 +42,7 @@ const client = new MongoClient(uri, {
   }
 });
 
-// Safe MongoDB Client Promise Caching for Vercel Serverless
+// Cache MongoDB Promise for Vercel Rewrites
 let clientPromise;
 
 async function connectDB() {
@@ -55,7 +55,6 @@ async function connectDB() {
 
 // ==================== ROUTES ====================
 
-// Root Route
 app.get('/', (req, res) => {
   res.send('Tutor Finder Server Running Cleanly!');
 });
@@ -69,7 +68,6 @@ app.post('/jwt', (req, res) => {
 
 // ---------------- 2. TUTORS API ----------------
 
-// Get All Tutors (Supports Search & Date Filter)
 app.get('/tutors', async (req, res) => {
   try {
     const { search, startDate, endDate, limit } = req.query;
@@ -101,7 +99,6 @@ app.get('/tutors', async (req, res) => {
   }
 });
 
-// Get My Added Tutors
 app.get('/my-tutors', async (req, res) => {
   try {
     const email = req.query.email;
@@ -119,7 +116,6 @@ app.get('/my-tutors', async (req, res) => {
   }
 });
 
-// Get Single Tutor Details
 app.get('/tutors/:id', async (req, res) => {
   try {
     const id = req.params.id;
@@ -133,7 +129,6 @@ app.get('/tutors/:id', async (req, res) => {
   }
 });
 
-// Add New Tutor
 app.post('/tutors', async (req, res) => {
   try {
     const newTutor = req.body;
@@ -149,7 +144,6 @@ app.post('/tutors', async (req, res) => {
   }
 });
 
-// Update Tutor Info
 app.put('/tutors/:id', async (req, res) => {
   try {
     const id = req.params.id;
@@ -181,7 +175,6 @@ app.put('/tutors/:id', async (req, res) => {
   }
 });
 
-// Delete Tutor
 app.delete('/tutors/:id', async (req, res) => {
   try {
     const id = req.params.id;
@@ -197,7 +190,6 @@ app.delete('/tutors/:id', async (req, res) => {
 
 // ---------------- 3. BOOKINGS API ----------------
 
-// Add Booking & Auto-Decrease Tutor Slot
 app.post('/bookings', async (req, res) => {
   try {
     const bookingData = req.body;
@@ -227,7 +219,6 @@ app.post('/bookings', async (req, res) => {
   }
 });
 
-// Get Bookings by User Email
 app.get('/bookings', async (req, res) => {
   try {
     const email = req.query.email;
@@ -250,7 +241,6 @@ app.get('/bookings', async (req, res) => {
   }
 });
 
-// Update Booking Status
 app.patch('/bookings/:id', async (req, res) => {
   try {
     const id = req.params.id;
@@ -268,19 +258,17 @@ app.patch('/bookings/:id', async (req, res) => {
   }
 });
 
-// Delete Booking
 app.delete('/bookings/:id', async (req, res) => {
   try {
     const id = req.params.id;
     const db = await connectDB();
     const bookingsCollection = db.collection('bookings');
     const query = { _id: new ObjectId(id) };
-    const result = await bookingsCollection.deleteOne(query);
+    const result = await tutorsCollection.deleteOne(query);
     res.send(result);
   } catch (error) {
     res.status(500).send({ message: "Error deleting booking", error: error.message });
   }
 });
 
-// Export App
 module.exports = app;
