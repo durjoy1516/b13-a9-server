@@ -16,27 +16,13 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.options('*', cors(corsOptions)); // Handle Preflight Requests globally
+app.options('*', cors(corsOptions));
 app.use(express.json());
 
-// ==================== 2. JWT MIDDLEWARE ====================
-const verifyJWT = (req, res, next) => {
-  const authorization = req.headers.authorization;
-  if (!authorization) {
-    return res.status(401).send({ error: true, message: 'Unauthorized access' });
-  }
-  const token = authorization.split(' ')[1];
-  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET || 'secret_key', (err, decoded) => {
-    if (err) {
-      return res.status(403).send({ error: true, message: 'Forbidden access' });
-    }
-    req.decoded = decoded;
-    next();
-  });
-};
-
-// ==================== 3. MONGODB SETUP ====================
-const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.cu9mlf8.mongodb.net/?retryWrites=true&w=majority`;
+// Safe URI Encoding to handle special characters in DB_PASS or DB_USER
+const dbUser = encodeURIComponent(process.env.DB_USER || '');
+const dbPass = encodeURIComponent(process.env.DB_PASS || '');
+const uri = `mongodb+srv://${dbUser}:${dbPass}@cluster0.cu9mlf8.mongodb.net/?retryWrites=true&w=majority`;
 
 const client = new MongoClient(uri, {
   serverApi: {
@@ -49,6 +35,9 @@ const client = new MongoClient(uri, {
 let clientPromise;
 
 async function connectDB() {
+  if (!process.env.DB_USER || !process.env.DB_PASS) {
+    throw new Error("DB_USER or DB_PASS is missing in Vercel Environment Variables!");
+  }
   if (!clientPromise) {
     clientPromise = client.connect();
   }
@@ -261,7 +250,6 @@ app.patch('/bookings/:id', async (req, res) => {
   }
 });
 
-// FIXED BUG HERE: changed tutorsCollection to bookingsCollection
 app.delete('/bookings/:id', async (req, res) => {
   try {
     const id = req.params.id;
@@ -273,6 +261,11 @@ app.delete('/bookings/:id', async (req, res) => {
   } catch (error) {
     res.status(500).send({ message: "Error deleting booking", error: error.message });
   }
+});
+
+// Global Error Handler Middleware
+app.use((err, req, res, next) => {
+  res.status(500).send({ message: "Internal Server Error", error: err.message });
 });
 
 module.exports = app;
