@@ -5,17 +5,21 @@ const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config();
 
 const app = express();
-const port = process.env.PORT || 5000;
 
-// Middleware
-app.use(cors({
+// ==================== 1. CORS CONFIGURATION ====================
+const corsOptions = {
   origin: '*', 
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
-  credentials: true
-}));
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  credentials: true,
+  optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions)); // Handle Preflight Requests globally
 app.use(express.json());
 
-// JWT Verification Middleware
+// ==================== 2. JWT MIDDLEWARE ====================
 const verifyJWT = (req, res, next) => {
   const authorization = req.headers.authorization;
   if (!authorization) {
@@ -31,7 +35,7 @@ const verifyJWT = (req, res, next) => {
   });
 };
 
-// MongoDB Setup
+// ==================== 3. MONGODB SETUP ====================
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.cu9mlf8.mongodb.net/?retryWrites=true&w=majority`;
 
 const client = new MongoClient(uri, {
@@ -42,7 +46,6 @@ const client = new MongoClient(uri, {
   }
 });
 
-// Cache MongoDB Promise for Vercel Rewrites
 let clientPromise;
 
 async function connectDB() {
@@ -258,13 +261,14 @@ app.patch('/bookings/:id', async (req, res) => {
   }
 });
 
+// FIXED BUG HERE: changed tutorsCollection to bookingsCollection
 app.delete('/bookings/:id', async (req, res) => {
   try {
     const id = req.params.id;
     const db = await connectDB();
     const bookingsCollection = db.collection('bookings');
     const query = { _id: new ObjectId(id) };
-    const result = await tutorsCollection.deleteOne(query);
+    const result = await bookingsCollection.deleteOne(query);
     res.send(result);
   } catch (error) {
     res.status(500).send({ message: "Error deleting booking", error: error.message });
